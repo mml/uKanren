@@ -1,10 +1,20 @@
 (define-syntax (λ stx)
   (syntax-case stx ()
     [(_ args b ...) #'(lambda args b ...)]))
-(define (var c) (gensym "var" (string-append "var" (number->string c))))
-(define (var? x) (and (gensym? x)
-                      (string=? "var" (symbol->string x))))
-(define (var=? x1 x2) (eq? x1 x2))
+;;; Alternate var implementations to play with.
+;;; * GENSYM-VAR uses gensyms
+;;; * BOX-VAR uses immutable boxes, which I assume are at least as efficient as
+;;;   1-element vectors.
+(module gensym-var (var var? var=?)
+  (define (var c) (gensym "var" (string-append "var" (number->string c))))
+  (define (var? x) (and (gensym? x)
+                        (string=? "var" (symbol->string x))))
+  (define (var=? x1 x2) (eq? x1 x2)))
+(module box-var (var var? var=?)
+  (define (var c) (box-immutable c))
+  (define (var? x) (box? x))
+  (define (var=? x1 x2) (and (var? x1) (var? x2) (= (unbox x1) (unbox x2)))))
+(import gensym-var)
 
 (define (walk u s)
   (let ([pr (and (var? u) (assp (λ (v) (var=? u v)) s))])
