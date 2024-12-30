@@ -143,13 +143,51 @@
 (define empty-state `(,mzero . 0))
 (define (call/empty-state g) (g empty-state))
 
-(define-syntax run
-  (syntax-rules ()
-    [(_ n (x ...) g0 g ...)
-     (mK-reify (take n (call/empty-state
-                         (fresh (x ...) g0 g ... ))))]))
-(define-syntax run*
-  (syntax-rules ()
-    [(_ (x ...) g0 g ...)
-     (mK-reify (take-all (call/empty-state
+(module orig-run (run run*)
+  (define-syntax run
+    (syntax-rules ()
+      [(_ n (x ...) g0 g ...)
+       (mK-reify (take n (call/empty-state
                            (fresh (x ...) g0 g ... ))))]))
+  (define-syntax run*
+    (syntax-rules ()
+      [(_ (x ...) g0 g ...)
+       (mK-reify (take-all (call/empty-state
+                             (fresh (x ...) g0 g ... ))))])))
+(module pretty-run (run run* prun prun*)
+  (define-syntax (run stx)
+    (syntax-case stx ()
+      [(run n (x0 x ...) g ...)
+       #'(run n q (fresh (x0 x ...)
+                    (== `(,x0 ,x ...) q) g ...))]
+      [(run n q g0 g ...)
+       #'(mK-reify (take n (call/empty-state
+                             (fresh (q) g0 g ...))))]))
+  (define-syntax (run* stx)
+    (syntax-case stx ()
+      [(run* (x ...) g0 g ...)
+       #'(run +inf.0 (x ...) g0 g ...)]
+      [(run* q g0 g ...)
+       #'(run +inf.0 q g0 g ...)]))
+  (define-syntax (prun stx)
+    (syntax-case stx ()
+      [(prun n (x0 x ...) g ...)
+       #'(for-each (λ (x0 x ...)
+                     (pretty-print `((x0 = ,x0)
+                                     (x = ,x) ...)))
+                   (run n (x0 x ...) g ...))]
+      [(prun n q g0 g ...)
+       #'(for-each (λ (q)
+                     (pretty-print `(q = ,q)))
+                   (run n q g0 g ...))]))
+  (define-syntax (prun* stx)
+    (syntax-case stx ()
+      [(prun* (x ...) g0 g ...)
+       #'(for-each (λ (x*)
+                     (apply (λ (x ...)
+                              (pretty-print `((x = ,x) ...))) x*))
+                   (run* (x ...) g0 g ...))]
+      [(prun* q g0 g ...)
+       #'(for-each (λ (q) (pretty-print `(q = ,q)))
+                   (run* q g0 g ...))])))
+(import pretty-run)
