@@ -10,12 +10,12 @@
   (let ([pr (and (var? u) (assp (λ (v) (var=? u v)) s))])
     (if pr (walk (cdr pr) s) u)))
 
-(define (ext-s x v s) `((, x . , v) . , s))
+(define (ext-s x v s) `((,x . ,v) . ,s))
 
 (define (≡ u v)
   (λ (s/c)
      (let ([s (unify u v (car s/c))])
-       (if s (unit `(, s . , (cdr s/c))) mzero))))
+       (if s (unit `(,s . ,(cdr s/c))) mzero))))
 (define == ≡)
 
 (define (unit s/c) (cons s/c mzero))
@@ -32,10 +32,11 @@
               (and s (unify (cdr u) (cdr v) s)))]
       [else (and (eqv? u v) s)])))
 
+
 (define (call/fresh f)
   (λ (s/c)
      (let ([c (cdr s/c)])
-       ((f (var c)) `(, (car s/c) . , (+ c 1))))))
+       ((f (var c)) `(,(car s/c) . ,(add1 c))))))
 
 (define (disj g1 g2) (λ (s/c) (mplus (g1 s/c) (g2 s/c))))
 (define (conj g1 g2) (λ (s/c) (bind (g1 s/c) g2)))
@@ -104,7 +105,6 @@
 
 (define (mK-reify s/c*)
   (map reify-state/1st-var s/c*))
-
 (define (reify-state/1st-var s/c)
   (let ([v (walk* (var 0) (car s/c))])
     (walk* v (reify-s v '()))))
