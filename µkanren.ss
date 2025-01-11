@@ -183,11 +183,16 @@
   (define-syntax (prun* stx)
     (syntax-case stx ()
       [(prun* (x ...) g0 g ...)
-       #'(for-each (λ (x*)
-                     (apply (λ (x ...)
-                              (pretty-print `((x = ,x) ...))) x*))
-                   (run* (x ...) g0 g ...))]
+       #'(let ([x** (run* (x ...) g0 g ...)])
+           (if (null? x**)
+               (printf "no values\n")
+               (for-each
+                 (λ (x*)
+                    (apply (λ (x ...)
+                              (pretty-print `((x = ,x) ...))) x*)) x**)))]
       [(prun* q g0 g ...)
-       #'(for-each (λ (q) (pretty-print `(q = ,q)))
-                   (run* q g0 g ...))])))
+       #'(let ([q* (run* q g0 g ...)])
+           (if (null? q*)
+               (printf "no values\n")
+               (for-each (λ (q) (pretty-print `(q = ,q))) q*)))])))
 (import pretty-run)

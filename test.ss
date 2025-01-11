@@ -19,6 +19,34 @@
   (fresh (a)
     (conso a d p)))
 
+(define (listo l)
+  (conde
+    [(nullo l)]
+    [(fresh (d)
+       (cdro l d)
+       (listo d))]))
+
+(define (lolo l)
+  (conde
+    [(nullo l)]
+    [(fresh (a d)
+       (conso a d l)
+       (listo a)
+       (lolo d))]))
+
+(define (singletono l)
+  (fresh (d)
+    (cdro l d)
+    (nullo d)))
+
+(define (loso l)
+  (conde
+    [(nullo l)]
+    [(fresh ( a d)
+       (conso a d l)
+       (singletono a)
+       (loso d))]))
+
 (define (appendo l1 l2 out)
   (conde
     [(nullo l1) (== l2 out)]
@@ -27,17 +55,72 @@
        (appendo d l2 rest)
        (conso a rest out))]))
 
-(prun* q (nullo '()))
-(prun* q (nullo '(a)))
-(prun* l (conso 'the '(quick brown fox) l))
-(prun* a (caro '(the quick brown fox) a))
-(prun* d (cdro '(the quick brown fox) d))
-(prun* l (appendo '(the quick brown fox)
+(define (membero x l)
+  (conde
+    [(fresh (a)
+       (caro l a)
+       (== a x))]
+    [(fresh (d)
+       (cdro l d)
+       (membero x d))]))
+
+(module ((trun* with-printed-goals)
+         (trun with-printed-goals))
+  (define-syntax (with-printed-goals stx)
+    (syntax-case stx ()
+      [(_ (g ...) expr ...)
+       #'(begin
+           (begin (printf "-> ~a\n" 'g) ...)
+           expr ...)]))
+  (define-syntax (trun* stx)
+    (syntax-case stx ()
+      [(trun* q g0 g ...)
+       #'(with-printed-goals (g0 g ...)
+           (prun* q g0 g ...))]
+      [(trun* (x ...) g0 g ...)
+       #'(with-printed-goals (g0 g ...)
+           (prun* (x ...) g0 g ...))]))
+  (define-syntax (trun stx)
+    (syntax-case stx ()
+      [(trun n q g0 g ...)
+       #'(with-printed-goals (g0 g ...)
+           (prun n q g0 g ...))])))
+
+(trun* q (nullo '()))
+(trun* q (nullo '(a)))
+(trun* l (conso 'the '(quick brown fox) l))
+(trun* a (caro '(the quick brown fox) a))
+(trun* d (cdro '(the quick brown fox) d))
+(trun* q (listo '()))
+(trun* q (listo '(foo)))
+(trun* q (listo #t))
+(trun* q (singletono '(x)))
+(trun* q (singletono '()))
+(trun* q (loso '()))
+(trun* q (loso '((x) (y))))
+(trun* q (loso '(() ())))
+(trun* q (lolo '()))
+(trun* q (lolo '(() () ())))
+(trun* q (lolo '(a b c)))
+(trun* q (listo '(foo bar baz quux)))
+(trun* l (appendo '(the quick brown fox)
                   '(jumped over the lazy dog)
                   l))
-#;(prun* l1 (appendo l1                     ; Currently does not terminate
+#;(trun* l1 (appendo l1                     ; Currently does not terminate
                    '(and eggs)
                    '(hot tea and eggs)))
-(prun* l2 (appendo '(hot tea)
+(trun* l2 (appendo '(hot tea)
                    l2
                    '(hot tea and eggs)))
+(trun* q (membero 'x '(x)))
+(trun* q (membero 'x '(x y)))
+(trun* q (membero 'x '(y x)))
+(trun* q (membero 'x '()))
+(trun* q (membero 'x '(foo bar)))
+(trun* x (membero x '(foo bar)))
+(trun* y (membero 'foo `(,y bar)))
+(trun* y (membero y '()))
+(trun* y (membero y '(foo bar baz)))
+(trun* y (membero 'foo `(foo ,y baz)))
+(trun* (x y) (membero x `(foo ,y baz)))
+(trun 5 l (membero 'tofu l))
