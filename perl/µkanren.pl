@@ -1,4 +1,4 @@
-# vim:fdm=marker:fdc=2
+# vim:fdm=marker:fdc=4
 require 5;
 use warnings;
 use strict;
@@ -43,14 +43,17 @@ sub eqv($x, $y) {
 
 ### Monad {{{1
 use constant MZERO => NIL;
+sub codep($x) { 'CODE' eq ref $x }
 sub unit($s_c) { cons($s_c, MZERO) }
 sub mplus($stream1, $stream2) {
-  if (nullp($stream1)) { $stream2 }
-  else { cons(car($stream1), mplus(cdr($stream1), $stream2)) }
+  return $stream2 if nullp($stream1);
+  return sub { mplus($stream1->(), $stream2) } if codep($stream1);
+  cons(car($stream1), mplus(cdr($stream1), $stream2));
 }
 sub mbind($stream, $goal) {
-  if (nullp($stream)) { MZERO }
-  else { mplus($goal->(car($stream)), mbind(cdr($stream), $goal)) }
+  return MZERO if nullp($stream);
+  return sub { mbind($stream->(), $goal) } if codep($stream);
+  mplus($goal->(car($stream)), mbind(cdr($stream), $goal));
 }
 
 ### Unification {{{1
@@ -103,9 +106,14 @@ sub conj($g1, $g2) {
 
 ### Tests {{{1
 use constant EMPTY_S_C => cons(empty_s(), 0);
-sub print_answers($l) {
+sub pull($stream) {
+  $stream = $stream->() if codep($stream);
+  return $stream;
+}
+sub print_answers($l, $n = 'Inf') { #{{{
   my @answers;
-  for ($l = $l; not nullp($l); $l = cdr($l)) {
+  for (; $n-- > 0 and not nullp($l); $l = cdr($l)) {
+    $l = pull($l);
     my $s_c = car($l);
     my $s = car($s_c);
     my @lines;
@@ -118,7 +126,8 @@ sub print_answers($l) {
     push @answers, join(",\n", @lines);
   }
   print join(" ;\n", @answers), ".\n\n";
-}
+} #}}}
+
 my $result = call_fresh(sub($q) { equ($q, 5) })->(EMPTY_S_C);
 print_answers($result);
 
@@ -126,3 +135,26 @@ my $a_and_b = conj(
   call_fresh(sub($a) { (equ($a, 7)) }),
   call_fresh(sub($b) { disj(equ($b, 5), equ($b, 6)) }));
 print_answers($a_and_b->(EMPTY_S_C));
+
+#sub fives($x) { disj(equ($x, 5), fives($x)) }
+sub fives($x) { disj(
+    equ($x, 5),
+    sub($s_c) { # η⁻¹ delay
+      sub { fives($x)->($s_c) }
+    }
+) }
+sub sixes($x) { disj(
+    equ($x, 6),
+    sub($s_c) { # η⁻¹ delay
+      sub { sixes($x)->($s_c) }
+    }
+) }
+sub fives_and_sixes {
+  call_fresh(
+    sub($x) { disj(fives($x), sixes($x)) }
+  );
+}
+
+print_answers(call_fresh(\&fives)->(EMPTY_S_C), 4);
+print_answers(call_fresh(\&sixes)->(EMPTY_S_C), 4);
+print_answers(fives_and_sixes->(EMPTY_S_C), 4);
