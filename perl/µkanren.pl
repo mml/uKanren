@@ -6,7 +6,7 @@ use diagnostics;
 
 use feature 'signatures';
 
-use XXX;
+# use XXX; # for debugging
 
 use constant SUBST => 0;
 use constant COUNTER => 1;
@@ -47,7 +47,7 @@ sub codep($x) { 'CODE' eq ref $x }
 sub unit($s_c) { cons($s_c, MZERO) }
 sub mplus($stream1, $stream2) {
   return $stream2 if nullp($stream1);
-  return sub { mplus($stream1->(), $stream2) } if codep($stream1);
+  return sub { mplus($stream2, $stream1->()) } if codep($stream1);
   cons(car($stream1), mplus(cdr($stream1), $stream2));
 }
 sub mbind($stream, $goal) {
