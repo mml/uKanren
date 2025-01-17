@@ -104,8 +104,9 @@ sub conj($g1, $g2) {
   sub($s_c) { mbind($g1->($s_c), $g2) }
 }
 
-### Tests {{{1
+### UI Affordances {{{1
 use constant EMPTY_S_C => cons(empty_s(), 0);
+sub Zzz :prototype(&) ($thunk) { sub($s_c) { sub { $thunk->()->($s_c) } } }
 sub pull($stream) {
   $stream = $stream->() if codep($stream);
   return $stream;
@@ -128,33 +129,32 @@ sub print_answers($l, $n = 'Inf') { #{{{
   print join(" ;\n", @answers), ".\n\n";
 } #}}}
 
-my $result = call_fresh(sub($q) { equ($q, 5) })->(EMPTY_S_C);
-print_answers($result);
+sub run_tests { ### {{{1
+  my $result = call_fresh(sub($q) { equ($q, 5) })->(EMPTY_S_C);
+  print_answers($result);
 
-my $a_and_b = conj(
-  call_fresh(sub($a) { (equ($a, 7)) }),
-  call_fresh(sub($b) { disj(equ($b, 5), equ($b, 6)) }));
-print_answers($a_and_b->(EMPTY_S_C));
+  my $a_and_b = conj(
+    call_fresh(sub($a) { (equ($a, 7)) }),
+    call_fresh(sub($b) { disj(equ($b, 5), equ($b, 6)) }));
+  print_answers($a_and_b->(EMPTY_S_C));
 
-#sub fives($x) { disj(equ($x, 5), fives($x)) }
-sub fives($x) { disj(
-    equ($x, 5),
-    sub($s_c) { # η⁻¹ delay
-      sub { fives($x)->($s_c) }
-    }
-) }
-sub sixes($x) { disj(
-    equ($x, 6),
-    sub($s_c) { # η⁻¹ delay
-      sub { sixes($x)->($s_c) }
-    }
-) }
-sub fives_and_sixes {
-  call_fresh(
-    sub($x) { disj(fives($x), sixes($x)) }
-  );
+  sub fives($x) { disj(
+      equ($x, 5),
+      Zzz { fives($x) }
+  ) }
+  sub sixes($x) { disj(
+      equ($x, 6),
+      Zzz { sixes($x) }
+  ) }
+  sub fives_and_sixes {
+    call_fresh(
+      sub($x) { disj(fives($x), sixes($x)) }
+    );
+  }
+
+  print_answers(call_fresh(\&fives)->(EMPTY_S_C), 4);
+  print_answers(call_fresh(\&sixes)->(EMPTY_S_C), 4);
+  print_answers(fives_and_sixes->(EMPTY_S_C), 4);
 }
 
-print_answers(call_fresh(\&fives)->(EMPTY_S_C), 4);
-print_answers(call_fresh(\&sixes)->(EMPTY_S_C), 4);
-print_answers(fives_and_sixes->(EMPTY_S_C), 4);
+run_tests();
